@@ -82,7 +82,7 @@ def main():
     )
     args = ap.parse_args()
 
-    OUTPUT = Path(set(args.output_dir))  # output folder
+    OUTPUT = Path(args.output_dir)  # output folder
 
     # get and validate components
     components = set(args.components)
