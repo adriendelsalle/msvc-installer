@@ -376,6 +376,7 @@ def main():
                     else:
                         raise RuntimeError(f"{i} not set in environment")
                 self.__attrs[key] = Path(value)
+                print(f"{key}: {value}")
 
         def __getattr__(self, name):
             if name in self.__attrs:
