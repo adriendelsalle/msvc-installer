@@ -42,7 +42,8 @@ def main():
         data = data.getvalue()
         digest = hashlib.sha256(data).hexdigest()
         if check.lower() != digest:
-            exit(f"Hash mismatch for f{pkg}")
+            print(f"Hash mismatch for f{pkg}")
+            exit(1)
         return data
 
     # super crappy msi format parser just to find required .cab files
