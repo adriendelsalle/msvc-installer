@@ -75,13 +75,14 @@ def main():
     )
     ap.add_argument("--msvc-version", help="Get specific MSVC version")
     ap.add_argument("--sdk-version", help="Get specific Windows SDK version")
+    ap.add_argument("--output-dir", help="Specify output directory")
     ap.add_argument("--components", action="extend", nargs="+", type=str)
     ap.add_argument(
         "--discard", nargs="*", help="Extra arguments which will be discarded"
     )
     args = ap.parse_args()
 
-    OUTPUT = Path(os.environ["LIBRARY_PREFIX"]) / "vs_buildtools"  # output folder
+    OUTPUT = Path(set(args.output_dir))  # output folder
 
     # get and validate components
     components = set(args.components)
