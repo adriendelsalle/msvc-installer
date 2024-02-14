@@ -83,6 +83,7 @@ def main():
     args = ap.parse_args()
 
     OUTPUT = Path(args.output_dir)  # output folder
+    print(f"Tools will be installed at '{OUTPUT}'")
 
     # get and validate components
     components = set(args.components)
