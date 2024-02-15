@@ -44,29 +44,6 @@ class AtTemplate(string.Template):
     delimiter = "@"
 
 
-class Environment:
-    items = [
-        "RECIPE_DIR",
-        "PREFIX",
-        "LIBRARY_PREFIX",
-    ]
-
-    def __init__(self):
-        self.__attrs = {}
-        for i in self.items:
-            key = i.lower()
-            value = os.environ.get(i, None)
-            if value is None:
-                raise RuntimeError(f"{i} not set in environment")
-            self.__attrs[key] = Path(value)
-
-    def __getattr__(self, name):
-        if name in self.__attrs:
-            return self.__attrs[name]
-        else:
-            raise AttributeError
-
-
 def subs(line, substitutes):
     t = AtTemplate(line)
     return t.substitute(substitutes)
@@ -115,12 +92,9 @@ def install_vc_components(
     components,
     packages,
     msvc_ver,
-    env,
-    install_dir,
     host,
     target,
-    activation_hooks_dir,
-    deactivation_hooks_dir,
+    prefixes
 ):
     print(f"Starting installation of VC component(s) {components}")
     vc_packages = {
@@ -142,8 +116,6 @@ def install_vc_components(
             # ASAN
             f"microsoft.vc.{msvc_ver}.asan.headers.base",
             f"microsoft.vc.{msvc_ver}.asan.{target}.base",
-            # MSVC redist
-            # f"microsoft.vc.{msvc_ver}.crt.redist.x64.base",
         ],
     }
     selected_msvc_components = [
@@ -162,13 +134,13 @@ def install_vc_components(
                 with zipfile.ZipFile(f) as z:
                     for name in z.namelist():
                         if name.startswith("Contents/"):
-                            out = install_dir / Path(name).relative_to("Contents")
+                            out = prefixes.install_prefix / Path(name).relative_to("Contents")
                             out.parent.mkdir(parents=True, exist_ok=True)
                             out.write_bytes(z.read(name))
 
     print(f"VC component(s) total download: {total_download>>20} MB")
 
-    msvc_install_dir = list((install_dir / "VC/Tools/MSVC").glob("*"))
+    msvc_install_dir = list((prefixes.install_prefix / "VC/Tools/MSVC").glob("*"))
     if msvc_install_dir:
         msvcv = msvc_install_dir[0].name
     else:
@@ -177,40 +149,50 @@ def install_vc_components(
 
     print("Cleaning unused components")
     for f in ["Auxiliary", f"lib/{target}/store", f"lib/{target}/uwp"]:
-        shutil.rmtree(install_dir / "VC/Tools/MSVC" / msvcv / f, ignore_errors=True)
+        shutil.rmtree(prefixes.install_prefix / "VC/Tools/MSVC" / msvcv / f, ignore_errors=True)
 
     for arch in ["x86", "x64", "arm", "arm64"]:
         if arch != target:
             shutil.rmtree(
-                install_dir / "VC/Tools/MSVC" / msvcv / f"bin/Host{arch}",
+                prefixes.install_prefix / "VC/Tools/MSVC" / msvcv / f"bin/Host{arch}",
                 ignore_errors=True,
             )
 
+    if prefixes.scripts_root_prefix_placeholder:
+        scripts_root_prefix_placeholder =prefixes.scripts_root_prefix_placeholder
+    else:
+        scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+
     msvc_substitutes = {
-        "PREFIX": install_dir,
+        "ROOT_PREFIX": scripts_root_prefix_placeholder,
         "MSVC_VERSION": msvcv,
         "HOST_ARCH": host,
         "TARGET_ARCH": target,
     }
 
-    print("Creating activation and deactivation hooks")
-    copy_and_rename(
-        env.recipe_dir / "activate_msvc.bat",
-        activation_hooks_dir / "vs_buildtools-msvc.bat",
-        msvc_substitutes,
-    )
-    copy_and_rename(
-        env.recipe_dir / "deactivate_msvc.bat",
-        deactivation_hooks_dir / "vs_buildtools-msvc.bat",
-        msvc_substitutes,
-    )
+    if prefixes.activation_scripts_prefix or prefixes.deactivation_scripts_prefix:
+        print("Creating activation and deactivation hooks")
+        tmpl_path = Path(__file__).parent
+
+        if prefixes.activation_scripts_prefix:
+            copy_and_rename(
+                tmpl_path / "activate_msvc.bat",
+                prefixes.activation_scripts_prefix / "vs2022_buildtools-msvc.bat",
+                msvc_substitutes,
+            )
+        if prefixes.deactivation_scripts_prefix:
+            copy_and_rename(
+                tmpl_path / "deactivate_msvc.bat",
+                prefixes.deactivation_scripts_prefix / "vs2022_buildtools-msvc.bat",
+                msvc_substitutes,
+            )
+
     print("VC component(s) successfully installed")
 
 
 def install_sdk(
     packages,
     sdk_pkg_id,
-    env,
     install_dir,
     host,
     target,
@@ -322,7 +304,12 @@ def parse_args():
         action="store_const",
         help="Automatically accept license",
     )
-    ap.add_argument("--install-prefix", help="Get installation prefix")
+    ap.add_argument("--root-prefix", help="Get the root prefix")
+    ap.add_argument("--install-prefix", help="Get installation prefix, relative to the root prefix")
+    ap.add_argument("--scripts-prefix", help="Get installation prefix, relative to the root prefix")
+    ap.add_argument("--activation-scripts-prefix", help="Get activation scripts prefix")
+    ap.add_argument("--deactivation-scripts-prefix", help="Get deactivation scripts prefix")
+    ap.add_argument("--scripts-root-prefix-placeholder", help="Get the placeholder to use instead of root prefix in (de)activation scripts")
     ap.add_argument("--msvc-version", help="Get specific MSVC version")
     ap.add_argument("--sdk-version", help="Get specific Windows SDK version")
     ap.add_argument(
@@ -335,20 +322,74 @@ def parse_args():
     )
     return ap.parse_args()
 
+from dataclasses import dataclass
+
+@dataclass
+class Prefixes:
+    root_prefix: None = None
+    install_prefix: None= None
+    scripts_prefix: None= None
+    activation_scripts_prefix: None= None
+    deactivation_scripts_prefix: None= None
+    scripts_root_prefix_placeholder: None= None
+
+
+def get_prefixes(args):
+
+    prefixes = Prefixes()
+
+    if args.root_prefix:
+        prefixes.root_prefix = Path(args.root_prefix)
+
+    if args.install_prefix:
+        prefixes.install_prefix = Path(args.install_prefix)
+        if prefixes.install_prefix.relative_to(prefixes.root_prefix) is None:
+            exit(f"Invalid installation prefix '{args.install_prefix}'")
+    else:
+        exit(f"Invalid installation prefix '{args.install_prefix}'")
+
+    if args.scripts_prefix:
+        prefixes.scripts_prefix = Path(args.scripts_prefix)
+
+    if args.activation_scripts_prefix:
+        prefixes.activation_scripts_prefix = Path(args.activation_scripts_prefix)
+        if prefixes.scripts_prefix and prefixes.activation_scripts_prefix.relative_to(prefixes.scripts_prefix) is None:
+            exit(f"Invalid activation prefix '{args.activation_scripts_prefix}'")
+
+    if args.deactivation_scripts_prefix:
+        prefixes.deactivation_scripts_prefix = Path(args.deactivation_scripts_prefix)
+        if prefixes.scripts_prefix and prefixes.deactivation_scripts_prefix.relative_to(prefixes.scripts_prefix) is None:
+            exit(f"Invalid deactivation prefix '{args.deactivation_scripts_prefix}'")
+
+    if args.scripts_root_prefix_placeholder:
+        prefixes.scripts_root_prefix_placeholder = args.scripts_root_prefix_placeholder
+
+    if prefixes.install_prefix:
+        prefixes.install_prefix.mkdir(exist_ok=True, parents=True)
+    if prefixes.activation_scripts_prefix:
+        prefixes.activation_scripts_prefix.mkdir(exist_ok=True, parents=True)
+    if prefixes.deactivation_scripts_prefix:
+        prefixes.deactivation_scripts_prefix.mkdir(exist_ok=True, parents=True)
+
+    return prefixes
+
 
 def main():
     # other architectures may work or may not - not really tested
     HOST = "x64"  # or x86
     TARGET = "x64"  # or x86, arm, arm64
 
+    # vs2022 manifest
     MANIFEST_URL = "https://aka.ms/vs/17/release/channel"
 
     args = parse_args()
 
-    OUTPUT = Path(args.install_prefix) / "vs_buildtools"  # output folder
-    print(f"Installation directory set to '{OUTPUT}'")
+    manifest = json.loads(download(MANIFEST_URL))
+    agree_to_license(manifest, args.accept_license)
 
-    # get and validate components
+    prefixes = get_prefixes(args)
+    print(f"Installation prefix set to '{prefixes.install_prefix}'")
+
     if args.components is None:
         print("Please select at least one component using '--components' CLI option")
         exit(0)
@@ -356,8 +397,7 @@ def main():
     available_components = {"msvc", "asan", "sdk", "crt"}
     if not components.issubset(available_components):
         raise ValueError(f"Invalid components {components - available_components}")
-
-    manifest = json.loads(download(MANIFEST_URL))
+    
     vs_workload = first(
         manifest["channelItems"],
         lambda x: x["id"] == "Microsoft.VisualStudio.Manifests.VisualStudio",
@@ -365,6 +405,8 @@ def main():
     payload = vs_workload["payloads"][0]["url"]
 
     vs_manifest = json.loads(download(payload))
+
+
 
     packages = {}
     for p in vs_manifest["packages"]:
@@ -393,17 +435,7 @@ def main():
         print("MSVC versions:", " ".join(sorted(msvc.keys())))
         print("Windows SDK versions:", " ".join(sorted(sdk.keys())))
         exit(0)
-
-    env = Environment()
-    activation_hooks_dir = Path(env.prefix) / "etc" / "conda" / "activate.d"
-    deactivation_hooks_dir = Path(env.prefix) / "etc" / "conda" / "deactivate.d"
-    os.makedirs(activation_hooks_dir, exist_ok=True)
-    os.makedirs(deactivation_hooks_dir, exist_ok=True)
-
-    OUTPUT.mkdir(exist_ok=True, parents=True)
-
-    agree_to_license(manifest, args.accept_license)
-
+       
     if any(component in components for component in ["msvc", "crt", "asan"]):
         if args.msvc_version in msvc:
             msvc_pkg_id = msvc[args.msvc_version]
@@ -412,12 +444,9 @@ def main():
                 components,
                 packages,
                 msvc_ver,
-                env,
-                OUTPUT,
                 HOST,
                 TARGET,
-                activation_hooks_dir=activation_hooks_dir,
-                deactivation_hooks_dir=deactivation_hooks_dir,
+                prefixes
             )
         else:
             print(f"Available MSVC versions are: {msvc}")
@@ -437,12 +466,9 @@ def main():
             install_sdk(
                 packages,
                 sdk_pkg_id,
-                env,
-                OUTPUT,
                 HOST,
                 TARGET,
-                activation_hooks_dir=activation_hooks_dir,
-                deactivation_hooks_dir=deactivation_hooks_dir,
+                prefixes
             )
         else:
             print(f"Available SDK versions are: {sdk}")

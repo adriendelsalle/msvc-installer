@@ -1,6 +1,6 @@
 @@echo off
 
-set ROOT=%CONDA_PREFIX%\Library\vs_buildtools
+set ROOT=@{ROOT_PREFIX}
 set MSVC_VERSION=@{MSVC_VERSION}
 set MSVC_HOST=Host@{HOST_ARCH}
 set MSVC_ARCH=@{TARGET_ARCH}
