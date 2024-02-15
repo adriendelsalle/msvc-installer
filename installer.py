@@ -322,6 +322,7 @@ def parse_args():
         action="store_const",
         help="Automatically accept license",
     )
+    ap.add_argument("--install-prefix", help="Get installation prefix")
     ap.add_argument("--msvc-version", help="Get specific MSVC version")
     ap.add_argument("--sdk-version", help="Get specific Windows SDK version")
     ap.add_argument(
@@ -344,7 +345,7 @@ def main():
 
     args = parse_args()
 
-    OUTPUT = Path(os.environ["LIBRARY_PREFIX"]) / "vs_buildtools"  # output folder
+    OUTPUT = Path(args.install_prefix) / "vs_buildtools"  # output folder
     print(f"Installation directory set to '{OUTPUT}'")
 
     # get and validate components
