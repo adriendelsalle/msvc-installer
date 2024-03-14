@@ -1,0 +1,1 @@
+$env:PATH = $env:PATH -replace [regex]::Escape($env:WIN_SDK_ADDITION_TO_PATH) + ';', ''

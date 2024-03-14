@@ -161,7 +161,10 @@ def install_vc_components(
     if prefixes.scripts_root_prefix_placeholder:
         scripts_root_prefix_placeholder = prefixes.scripts_root_prefix_placeholder
     else:
-        scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+        if prefixes.install_prefix.is_absolute():
+            scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+        else:
+            scripts_root_prefix_placeholder = prefixes.install_prefix
 
     msvc_substitutes = {
         "ROOT_PREFIX": scripts_root_prefix_placeholder,
@@ -180,10 +183,20 @@ def install_vc_components(
                 prefixes.activation_scripts_prefix / "vs2022_buildtools-msvc.bat",
                 msvc_substitutes,
             )
+            copy_and_rename(
+                tmpl_path / "activate_msvc.ps1",
+                prefixes.activation_scripts_prefix / "vs2022_buildtools-msvc.ps1",
+                msvc_substitutes,
+            )
         if prefixes.deactivation_scripts_prefix:
             copy_and_rename(
                 tmpl_path / "deactivate_msvc.bat",
                 prefixes.deactivation_scripts_prefix / "vs2022_buildtools-msvc.bat",
+                msvc_substitutes,
+            )
+            copy_and_rename(
+                tmpl_path / "deactivate_msvc.ps1",
+                prefixes.deactivation_scripts_prefix / "vs2022_buildtools-msvc.ps1",
                 msvc_substitutes,
             )
 
@@ -286,17 +299,19 @@ def install_sdk(
                 ignore_errors=True,
             )
 
-    sdk_substitutes = {
-        "ROOT_PREFIX": scripts_root_prefix_placeholder,
-        "MSVC_VERSION": msvcv,
-        "HOST_ARCH": host,
-        "TARGET_ARCH": target,
-    }
-
     if prefixes.scripts_root_prefix_placeholder:
         scripts_root_prefix_placeholder = prefixes.scripts_root_prefix_placeholder
     else:
-        scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+        if prefixes.install_prefix.is_absolute():
+            scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+        else:
+            scripts_root_prefix_placeholder = prefixes.install_prefix
+
+    sdk_substitutes = {
+        "ROOT_PREFIX": scripts_root_prefix_placeholder,
+        "SDK_VERSION": sdkv,
+        "SDK_TARGET_ARCH": target
+    }
 
     if prefixes.activation_scripts_prefix or prefixes.deactivation_scripts_prefix:
         print("Creating activation and deactivation hooks")
@@ -305,13 +320,23 @@ def install_sdk(
         if prefixes.activation_scripts_prefix:
             copy_and_rename(
                 tmpl_path / "activate_sdk.bat",
-                prefixes.activation_scripts_prefix / "vs2022_buildtools-sdk.bat",
+                prefixes.activation_scripts_prefix / "vs2022_buildtools-win-sdk.bat",
+                sdk_substitutes,
+            )
+            copy_and_rename(
+                tmpl_path / "activate_sdk.ps1",
+                prefixes.activation_scripts_prefix / "vs2022_buildtools-win-sdk.ps1",
                 sdk_substitutes,
             )
         if prefixes.deactivation_scripts_prefix:
             copy_and_rename(
                 tmpl_path / "deactivate_sdk.bat",
-                prefixes.deactivation_scripts_prefix / "vs2022_buildtools-sdk.bat",
+                prefixes.deactivation_scripts_prefix / "vs2022_buildtools-win-sdk.bat",
+                sdk_substitutes,
+            )
+            copy_and_rename(
+                tmpl_path / "deactivate_sdk.ps1",
+                prefixes.deactivation_scripts_prefix / "vs2022_buildtools-win-sdk.ps1",
                 sdk_substitutes,
             )
 
@@ -368,10 +393,12 @@ def get_prefixes(args):
 
     if args.root_prefix:
         prefixes.root_prefix = Path(args.root_prefix)
-
+    else:
+        prefixes.root_prefix = Path.cwd()
+    
     if args.install_prefix:
         prefixes.install_prefix = Path(args.install_prefix)
-        if prefixes.install_prefix.relative_to(prefixes.root_prefix) is None:
+        if prefixes.install_prefix.is_absolute() and prefixes.install_prefix.relative_to(prefixes.root_prefix) is None:
             exit(f"Invalid installation prefix '{args.install_prefix}'")
     else:
         exit(f"Invalid installation prefix '{args.install_prefix}'")
@@ -381,12 +408,12 @@ def get_prefixes(args):
 
     if args.activation_scripts_prefix:
         prefixes.activation_scripts_prefix = Path(args.activation_scripts_prefix)
-        if prefixes.scripts_prefix and prefixes.activation_scripts_prefix.relative_to(prefixes.scripts_prefix) is None:
+        if prefixes.scripts_prefix and prefixes.activation_scripts_prefix.is_absolute() and prefixes.activation_scripts_prefix.relative_to(prefixes.scripts_prefix) is None:
             exit(f"Invalid activation prefix '{args.activation_scripts_prefix}'")
 
     if args.deactivation_scripts_prefix:
         prefixes.deactivation_scripts_prefix = Path(args.deactivation_scripts_prefix)
-        if prefixes.scripts_prefix and prefixes.deactivation_scripts_prefix.relative_to(prefixes.scripts_prefix) is None:
+        if prefixes.scripts_prefix and prefixes.deactivation_scripts_prefix.is_absolute() and prefixes.deactivation_scripts_prefix.relative_to(prefixes.scripts_prefix) is None:
             exit(f"Invalid deactivation prefix '{args.deactivation_scripts_prefix}'")
 
     if args.scripts_root_prefix_placeholder:
