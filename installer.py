@@ -159,7 +159,7 @@ def install_vc_components(
             )
 
     if prefixes.scripts_root_prefix_placeholder:
-        scripts_root_prefix_placeholder =prefixes.scripts_root_prefix_placeholder
+        scripts_root_prefix_placeholder = prefixes.scripts_root_prefix_placeholder
     else:
         scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
 
@@ -193,13 +193,11 @@ def install_vc_components(
 def install_sdk(
     packages,
     sdk_pkg_id,
-    install_dir,
     host,
     target,
-    activation_hooks_dir,
-    deactivation_hooks_dir,
+    prefixes,
 ):
-    dst = install_dir / "SDK" / f"{target}"
+    dst = prefixes.install_prefix / "SDK" / f"{target}"
 
     sdk_packages = [
         # Windows SDK tools (like rc.exe & mt.exe)
@@ -253,16 +251,16 @@ def install_sdk(
                     m,
                     "/quiet",
                     "/qn",
-                    f"TARGETDIR={install_dir.resolve()}",
+                    f"TARGETDIR={prefixes.install_prefix.resolve()}",
                 ]
             )
 
-        sdkv = list((install_dir / "Windows Kits/10/bin").glob("*"))[0].name
+        sdkv = list((prefixes.install_prefix / "Windows Kits/10/bin").glob("*"))[0].name
 
-    shutil.rmtree(install_dir / "Common7", ignore_errors=True)
+    shutil.rmtree(prefixes.install_prefix / "Common7", ignore_errors=True)
 
     print("Cleaning unused components")
-    for f in install_dir.glob("*.msi"):
+    for f in prefixes.install_prefix.glob("*.msi"):
         f.unlink()
 
     for f in [
@@ -271,27 +269,58 @@ def install_sdk(
         f"bin/{sdkv}/chpe",
         f"Lib/{sdkv}/ucrt_enclave",
     ]:
-        shutil.rmtree(install_dir / "Windows Kits/10" / f, ignore_errors=True)
+        shutil.rmtree(prefixes.install_prefix / "Windows Kits/10" / f, ignore_errors=True)
 
     for arch in ["x86", "x64", "arm", "arm64"]:
         if arch != target:
             shutil.rmtree(
-                install_dir / "Windows Kits/10/bin" / sdkv / arch,
+                prefixes.install_prefix / "Windows Kits/10/bin" / sdkv / arch,
                 ignore_errors=True,
             )
             shutil.rmtree(
-                install_dir / "Windows Kits/10/Lib" / sdkv / "ucrt" / arch,
+                prefixes.install_prefix / "Windows Kits/10/Lib" / sdkv / "ucrt" / arch,
                 ignore_errors=True,
             )
             shutil.rmtree(
-                install_dir / "Windows Kits/10/Lib" / sdkv / "um" / arch,
+                prefixes.install_prefix / "Windows Kits/10/Lib" / sdkv / "um" / arch,
                 ignore_errors=True,
             )
+
+    sdk_substitutes = {
+        "ROOT_PREFIX": scripts_root_prefix_placeholder,
+        "MSVC_VERSION": msvcv,
+        "HOST_ARCH": host,
+        "TARGET_ARCH": target,
+    }
+
+    if prefixes.scripts_root_prefix_placeholder:
+        scripts_root_prefix_placeholder = prefixes.scripts_root_prefix_placeholder
+    else:
+        scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+
+    if prefixes.activation_scripts_prefix or prefixes.deactivation_scripts_prefix:
+        print("Creating activation and deactivation hooks")
+        tmpl_path = Path(__file__).parent
+
+        if prefixes.activation_scripts_prefix:
+            copy_and_rename(
+                tmpl_path / "activate_sdk.bat",
+                prefixes.activation_scripts_prefix / "vs2022_buildtools-sdk.bat",
+                sdk_substitutes,
+            )
+        if prefixes.deactivation_scripts_prefix:
+            copy_and_rename(
+                tmpl_path / "deactivate_sdk.bat",
+                prefixes.deactivation_scripts_prefix / "vs2022_buildtools-sdk.bat",
+                sdk_substitutes,
+            )
+
     print("SDK successfully installed")
 
 
 def parse_args():
     ap = argparse.ArgumentParser()
+    ap.add_argument("install_prefix", help="Get installation prefix, absolute or relative to the root prefix if provided")
     ap.add_argument(
         "--show-versions",
         const=True,
@@ -305,7 +334,6 @@ def parse_args():
         help="Automatically accept license",
     )
     ap.add_argument("--root-prefix", help="Get the root prefix")
-    ap.add_argument("--install-prefix", help="Get installation prefix, relative to the root prefix")
     ap.add_argument("--scripts-prefix", help="Get installation prefix, relative to the root prefix")
     ap.add_argument("--activation-scripts-prefix", help="Get activation scripts prefix")
     ap.add_argument("--deactivation-scripts-prefix", help="Get deactivation scripts prefix")
