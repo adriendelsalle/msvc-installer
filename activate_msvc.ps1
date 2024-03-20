@@ -1,4 +1,4 @@
-$ROOT = "@{ROOT_PREFIX}"
+$ROOT = "$env:CONDA_PREFIX\Library\vs_buildtools"
 $MSVC_VERSION = "@{MSVC_VERSION}"
 $MSVC_HOST = "Host@{HOST_ARCH}"
 $MSVC_ARCH = "@{TARGET_ARCH}"
