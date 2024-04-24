@@ -1,4 +1,4 @@
-$ROOT = "$env:CONDA_PREFIX\Library\vs_buildtools"
+$ROOT = "@{ROOT_PREFIX}"
 $SDK_VERSION = "@{SDK_VERSION}"
 $SDK_ARCH = "@{SDK_TARGET_ARCH}"
 

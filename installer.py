@@ -49,7 +49,29 @@ def subs(line, substitutes):
     return t.substitute(substitutes)
 
 
+def replace_variable(text):
+    # Find all occurrences of "%%word%%" in the text
+    start_index = text.find("%%")
+    end_index = text.find("%%", start_index + 2)
+
+    while start_index != -1 and end_index != -1:
+        # Extract the variable name
+        variable_name = text[start_index + 2:end_index]
+
+        # Replace "%%word%%" with "Env:word"
+        text = text[:start_index] + "Env:" + variable_name + text[end_index + 2:]
+
+        # Find next occurrence
+        start_index = text.find("%%")
+        end_index = text.find("%%", start_index + 2)
+
+    return text
+
+
 def copy_and_rename(source, target, substitutes):
+    if source.endswith("ps1"):
+        substitutes = {key: replace_variable(val) for key, val in substitutes}
+
     with open(source, "r") as r:
         with open(target, "w") as w:
             for line in r:

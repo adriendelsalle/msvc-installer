@@ -1,6 +1,6 @@
 @@echo off
 
-set ROOT=%CONDA_PREFIX%\Library\vs_buildtools
+set ROOT=@{ROOT_PREFIX}
 set SDK_VERSION=@{SDK_VERSION}
 set SDK_ARCH=@{SDK_TARGET_ARCH}
 
