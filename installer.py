@@ -52,14 +52,14 @@ def subs(line, substitutes):
 def replace_variable(text):
     # Find all occurrences of "%%word%%" in the text
     start_index = text.find("%")
-    end_index = text.find("%", start_index + 2)
+    end_index = text.find("%", start_index + 1)
 
     while start_index != -1 and end_index != -1:
         # Extract the variable name
-        variable_name = text[start_index + 2:end_index]
+        variable_name = text[start_index + 1:end_index]
 
         # Replace "%%word%%" with "Env:word"
-        text = text[:start_index] + "Env:" + variable_name + text[end_index + 2:]
+        text = text[:start_index] + "Env:" + variable_name + text[end_index + 1:]
 
         # Find next occurrence
         start_index = text.find("%")
