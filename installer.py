@@ -69,7 +69,7 @@ def replace_variable(text):
 
 
 def copy_and_rename(source, target, substitutes):
-    if source.endswith("ps1"):
+    if source.suffix == ".ps1":
         substitutes = {key: replace_variable(val) for key, val in substitutes}
 
     with open(source, "r") as r:
