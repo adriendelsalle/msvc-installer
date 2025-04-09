@@ -449,6 +449,9 @@ def get_prefixes(args):
     if args.scripts_root_prefix_placeholder:
         prefixes.scripts_root_prefix_placeholder = args.scripts_root_prefix_placeholder
 
+    if args.scripts_vs_prefix_placeholder:
+        prefixes.scripts_vs_prefix_placeholder = args.scripts_vs_prefix_placeholder
+
     if prefixes.install_prefix:
         prefixes.install_prefix.mkdir(exist_ok=True, parents=True)
     if prefixes.activation_scripts_prefix:
