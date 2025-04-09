@@ -189,6 +189,7 @@ def install_vc_components(
             scripts_root_prefix_placeholder = prefixes.install_prefix
 
     msvc_substitutes = {
+        "SYS_ROOT_PREFIX": prefixes.root_prefix,
         "ROOT_PREFIX": scripts_root_prefix_placeholder,
         "MSVC_VERSION": msvcv,
         "HOST_ARCH": host,

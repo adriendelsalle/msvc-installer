@@ -1,5 +1,6 @@
 @@echo off
 
+set SYS_ROOT=@{SYS_ROOT_PREFIX}
 set ROOT=@{ROOT_PREFIX}
 set MSVC_VERSION=@{MSVC_VERSION}
 set MSVC_HOST=Host@{HOST_ARCH}
