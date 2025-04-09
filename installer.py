@@ -183,14 +183,19 @@ def install_vc_components(
     if prefixes.scripts_root_prefix_placeholder:
         scripts_root_prefix_placeholder = prefixes.scripts_root_prefix_placeholder
     else:
+        scripts_root_prefix_placeholder = prefixes.root_prefix
+
+    if prefixes.scripts_vs_prefix_placeholder:
+        scripts_vs_prefix_placeholder = prefixes.scripts_vs_prefix_placeholder
+    else:
         if prefixes.install_prefix.is_absolute():
-            scripts_root_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
+            scripts_vs_prefix_placeholder = prefixes.install_prefix.relative_to(prefixes.root_prefix)
         else:
-            scripts_root_prefix_placeholder = prefixes.install_prefix
+            scripts_vs_prefix_placeholder = prefixes.install_prefix
 
     msvc_substitutes = {
-        "SYS_ROOT_PREFIX": str(prefixes.root_prefix),
-        "ROOT_PREFIX": scripts_root_prefix_placeholder,
+        "SYS_ROOT_PREFIX": str(scripts_root_prefix_placeholder),
+        "ROOT_PREFIX": str(scripts_vs_prefix_placeholder),
         "MSVC_VERSION": msvcv,
         "HOST_ARCH": host,
         "TARGET_ARCH": target,
@@ -386,6 +391,7 @@ def parse_args():
     ap.add_argument("--activation-scripts-prefix", help="Get activation scripts prefix")
     ap.add_argument("--deactivation-scripts-prefix", help="Get deactivation scripts prefix")
     ap.add_argument("--scripts-root-prefix-placeholder", help="Get the placeholder to use instead of root prefix in (de)activation scripts")
+    ap.add_argument("--scripts-vs-prefix-placeholder", help="Get the placeholder to use instead of Visual Studio prefix in (de)activation scripts")
     ap.add_argument("--msvc-version", help="Get specific MSVC version")
     ap.add_argument("--sdk-version", help="Get specific Windows SDK version")
     ap.add_argument(
@@ -408,6 +414,7 @@ class Prefixes:
     activation_scripts_prefix: None= None
     deactivation_scripts_prefix: None= None
     scripts_root_prefix_placeholder: None= None
+    scripts_vs_prefix_placeholder: None= None
 
 
 def get_prefixes(args):
