@@ -11,4 +11,4 @@ set VCToolsInstallDir=%MSVC_ROOT%\\
 set MSVC_ADDITION_TO_PATH=%MSVC_ROOT%\\bin\\%MSVC_HOST%\\%MSVC_ARCH%
 set PATH=%MSVC_ADDITION_TO_PATH%;%PATH%
 set INCLUDE=%MSVC_ROOT%\\include;%INCLUDE%
-set LIB=%MSVC_ROOT%\\lib\\%MSVC_ARCH%;%LIB%
+set LIB=%ROOT%\\Library\\lib;%MSVC_ROOT%\\lib\\%MSVC_ARCH%;%LIB%
